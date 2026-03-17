@@ -19,9 +19,10 @@ RESULTS_DIR   = r"Z:\homes\Rachel Wolansky\The Great Divergence\Results"
 STATS_CSV     = os.path.join(RESULTS_DIR, "time_series_analysis_inflation_adjusted_results.csv")
 
 CHART_FILES = {
-    "fig1": os.path.join(RESULTS_DIR, "fig1_avg_ratio_by_procedure_type.png"),
-    "fig2": os.path.join(RESULTS_DIR, "fig2_top5_procedure_ratios.png"),
+    "fig1": os.path.join(RESULTS_DIR, "fig1_drg_cpt_ratios_max.png"),
+    "fig2": os.path.join(RESULTS_DIR, "fig2_drg_cpt_ratios_min.png"),
     "fig3": os.path.join(RESULTS_DIR, "fig3_drg_cpt_payment_index.png"),
+    "fig4": os.path.join(RESULTS_DIR, "fig4_top5_procedure_ratios.png"),
 }
 
 YEARS = np.array([2019, 2020, 2021, 2022, 2023])
@@ -35,6 +36,25 @@ ABSTRACT_PROCS = {
     '44120': ('Small Bowel Resection (CPT 44120)',   'SB1',   329),
 }
 ABSTRACT_COLORS = ['#1f77b4', '#d62728', '#2ca02c', '#ff7f0e', '#9467bd']
+
+PROC_NAMES = {
+    'APPY':  'Appendectomy (44970)',
+    'CHOL':  'Cholecystectomy (47562)',
+    'COLO1': 'Open colectomy with anastomosis (44140)',
+    'COLO2': 'Laparoscopic colectomy with anastomosis (44204)',
+    'COLO3': 'Laparoscopic colectomy with end colostomy (44206)',
+    'COLO4': 'Open colectomy with end colostomy (44143)',
+    'SB1':   'Small bowel resection (44120)',
+    'SB2':   'Open lysis of adhesions (44005)',
+    'SB3':   'Laparoscopic lysis of adhesions (44180)',
+    'GAST1': 'Roux-en-Y gastric bypass (43644)',
+    'GAST2': 'Sleeve gastrectomy (43775)',
+    'HEP':   'Hepatic partial lobectomy (47120)',
+    'TX1':   'Kidney transplant (50360)',
+    'TX2':   'Liver transplant (47135)',
+    'TX3':   'Heart transplant (33945)',
+    'VASC':  'Endovascular aortic repair (34701)',
+}
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -502,62 +522,100 @@ def get_stat_for_proc(proc_name, ratio_type, all_results, corrected_p_list):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def save_fig1(results_df, all_results, analyzer):
-    """Fig 1: Average ratio by procedure type with BH significance stars in legend."""
-    proc_types = [t for t in results_df['Type'].unique() if pd.notna(t)]
-    colors = plt.cm.tab10(np.linspace(0, 1, len(proc_types)))
+    """Fig 1: All DRG-Max/CPT ratio time series."""
+    unique_cpts = results_df['CPT'].unique()
+    cmap = plt.cm.get_cmap('tab20', len(unique_cpts))
+    color_map = {cpt: cmap(i) for i, cpt in enumerate(unique_cpts)}
 
-    fig, ax = plt.subplots(figsize=(11, 6))
-    for i, ptype in enumerate(proc_types):
-        type_data  = results_df[results_df['Type'] == ptype]
-        yearly_avg = type_data.groupby('Year')[['Ratio_Max', 'Ratio_Min']].mean()
-        if yearly_avg.empty:
+    fig, ax = plt.subplots(figsize=(13, 7))
+
+    for j, r in enumerate(all_results):
+        proc  = r['procedure']
+        cpt   = r['cpt_code']
+        color = color_map.get(cpt, 'gray')
+
+        proc_df  = results_df[results_df['CPT'] == cpt].sort_values('Year')
+        if proc_df.empty:
             continue
 
-        # Collect BH-corrected p-values across all procedures of this type
-        proc_codes = [r['procedure'] for r in all_results
-                      if r['procedure'].startswith(ptype)]
+        years    = proc_df['Year'].values
+        max_vals = pd.to_numeric(proc_df['Ratio_Max'], errors='coerce').values
+        max_p    = analyzer.corrected_p_max_reg[j]
+        full_name = PROC_NAMES.get(proc, proc)
+        label    = f"{full_name}{sig_label(max_p)}"
 
-        max_bh_ps = [analyzer.corrected_p_max_reg[j]
-                     for j, r in enumerate(all_results)
-                     if r['procedure'].startswith(ptype)
-                     and not np.isnan(analyzer.corrected_p_max_reg[j])]
-        min_bh_ps = [analyzer.corrected_p_min_reg[j]
-                     for j, r in enumerate(all_results)
-                     if r['procedure'].startswith(ptype)
-                     and not np.isnan(analyzer.corrected_p_min_reg[j])]
-
-        # Use minimum (most significant) BH p-value across procedures of this type
-        best_max_p = np.nanmin(max_bh_ps) if max_bh_ps else np.nan
-        best_min_p = np.nanmin(min_bh_ps) if min_bh_ps else np.nan
-
-        max_label = f'{ptype} (Max){sig_label(best_max_p)}'
-        min_label = f'{ptype} (Min){sig_label(best_min_p)}'
-
-        ax.plot(yearly_avg.index, yearly_avg['Ratio_Max'],
-                marker='o', color=colors[i], label=max_label)
-        ax.plot(yearly_avg.index, yearly_avg['Ratio_Min'],
-                marker='s', color=colors[i], linestyle='--', label=min_label)
+        valid = ~np.isnan(max_vals)
+        if valid.sum() >= 2:
+            ax.plot(years[valid], max_vals[valid],
+                    marker='o', color=color, linewidth=1.5, label=label)
 
     ax.set_xlabel('Year')
-    ax.set_ylabel('Average DRG/CPT Ratio')
-    ax.set_title('Average Payment Ratios by Procedure Type', fontsize=14, fontweight='bold')
+    ax.set_ylabel('DRG/CPT Ratio')
+    ax.set_title('DRG-Max/CPT Payment Ratios by Procedure, 2019\u20132023',
+                 fontsize=14, fontweight='bold')
+    ax.set_xticks([2019, 2020, 2021, 2022, 2023])
+    ax.grid(True, alpha=0.3)
     handles, labels = ax.get_legend_handles_labels()
-    ax.legend(handles, labels,
-              loc='upper center', bbox_to_anchor=(0.5, -0.18),
+    ax.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, -0.15),
               ncol=4, fontsize=7, frameon=True)
     fig.text(0.5, 0.01, '* p<0.05 (Benjamini-Hochberg corrected)',
              fontsize=6.5, ha='center', va='bottom', color='#444444')
-    ax.grid(True, alpha=0.3)
-    ax.set_xticks([2019, 2020, 2021, 2022, 2023])
     fig.tight_layout()
-    fig.subplots_adjust(bottom=0.32)
+    fig.subplots_adjust(bottom=0.28)
     fig.savefig(CHART_FILES["fig1"], dpi=300, bbox_inches='tight')
     plt.close(fig)
     print(f"Saved: {CHART_FILES['fig1']}")
 
 
-def save_fig2(results_df, all_results, analyzer):
-    """Fig 2: Top 5 procedures from abstract, annotated with BH-corrected Sen's slope."""
+def save_fig2_min(results_df, all_results, analyzer):
+    """Fig 2: All DRG-Min/CPT ratio time series."""
+    unique_cpts = results_df['CPT'].unique()
+    cmap = plt.cm.get_cmap('tab20', len(unique_cpts))
+    color_map = {cpt: cmap(i) for i, cpt in enumerate(unique_cpts)}
+
+    fig, ax = plt.subplots(figsize=(13, 7))
+
+    for j, r in enumerate(all_results):
+        proc  = r['procedure']
+        cpt   = r['cpt_code']
+        color = color_map.get(cpt, 'gray')
+
+        proc_df  = results_df[results_df['CPT'] == cpt].sort_values('Year')
+        if proc_df.empty:
+            continue
+
+        years    = proc_df['Year'].values
+        min_vals = pd.to_numeric(proc_df['Ratio_Min'], errors='coerce').values
+        min_p    = analyzer.corrected_p_min_reg[j]
+        full_name = PROC_NAMES.get(proc, proc)
+        label    = f"{full_name}{sig_label(min_p)}"
+
+        valid = ~np.isnan(min_vals)
+        if valid.sum() >= 2:
+            ax.plot(years[valid], min_vals[valid],
+                    marker='s', color=color, linewidth=1.5,
+                    linestyle='--', label=label)
+
+    ax.set_xlabel('Year')
+    ax.set_ylabel('DRG/CPT Ratio')
+    ax.set_title('DRG-Min/CPT Payment Ratios by Procedure, 2019\u20132023',
+                 fontsize=14, fontweight='bold')
+    ax.set_xticks([2019, 2020, 2021, 2022, 2023])
+    ax.grid(True, alpha=0.3)
+    handles, labels = ax.get_legend_handles_labels()
+    ax.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, -0.15),
+              ncol=4, fontsize=7, frameon=True)
+    fig.text(0.5, 0.01, '* p<0.05 (Benjamini-Hochberg corrected)',
+             fontsize=6.5, ha='center', va='bottom', color='#444444')
+    fig.tight_layout()
+    fig.subplots_adjust(bottom=0.28)
+    fig.savefig(CHART_FILES["fig2"], dpi=300, bbox_inches='tight')
+    plt.close(fig)
+    print(f"Saved: {CHART_FILES['fig2']}")
+
+
+def save_fig4(results_df, all_results, analyzer):
+    """Fig 4: Top 5 procedures from abstract, annotated with BH-corrected Sen's slope."""
     # Keyed by CPT code: (display name, crosswalk procedure code for stat lookup)
     key_procs = {
         '34701': ('EVAR (CPT 34701)',                'VASC'),
@@ -597,9 +655,9 @@ def save_fig2(results_df, all_results, analyzer):
     ax.set_xticks([2019, 2020, 2021, 2022, 2023])
     fig.tight_layout()
     fig.subplots_adjust(bottom=0.28)
-    fig.savefig(CHART_FILES["fig2"], dpi=300, bbox_inches='tight')
+    fig.savefig(CHART_FILES["fig4"], dpi=300, bbox_inches='tight')
     plt.close(fig)
-    print(f"Saved: {CHART_FILES['fig2']}")
+    print(f"Saved: {CHART_FILES['fig4']}")
 
 
 def save_fig3(cpt_data, drg_data, results_df, all_results, analyzer):
@@ -737,9 +795,10 @@ if __name__ == "__main__":
             print("\nGenerating figures...")
             if results_df is not None and not results_df.empty:
                 save_fig1(results_df, all_results, analyzer)
-                save_fig2(results_df, all_results, analyzer)
+                save_fig2_min(results_df, all_results, analyzer)
+                save_fig4(results_df, all_results, analyzer)
             else:
-                print("Skipping Figs 1-2 (no Step 4 ratio CSV found).")
+                print("Skipping Figs 1, 2, 4 (no Step 4 ratio CSV found).")
 
             save_fig3(cpt_summary, drg_summary, results_df, all_results, analyzer)
 
