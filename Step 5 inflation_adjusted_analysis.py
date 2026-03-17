@@ -29,31 +29,31 @@ YEARS = np.array([2019, 2020, 2021, 2022, 2023])
 
 # CPT codes for the 5 abstract procedures used across Figs 2, 3, 4
 ABSTRACT_PROCS = {
-    '34701': ('EVAR (CPT 34701)',                   'VASC',  268),
-    '33945': ('Heart Transplant (CPT 33945)',        'TX3',   1),
-    '47135': ('Liver Transplant (CPT 47135)',        'TX2',   5),
-    '47562': ('Cholecystectomy (CPT 47562)',         'CHOL',  417),
-    '44120': ('Small Bowel Resection (CPT 44120)',   'SB1',   329),
+    '34701': ('Endovascular Aortic Repair', 'VASC',  268),
+    '33945': ('Heart Transplant', 'TX3',   1),
+    '47135': ('Liver Transplant', 'TX2',   5),
+    '47562': ('Cholecystectomy',  'CHOL',  417),
+    '44120': ('Small Bowel Resection', 'SB1', 329),
 }
 ABSTRACT_COLORS = ['#1f77b4', '#d62728', '#2ca02c', '#ff7f0e', '#9467bd']
 
 PROC_NAMES = {
-    'APPY':  'Appendectomy (44970)',
-    'CHOL':  'Cholecystectomy (47562)',
-    'COLO1': 'Open colectomy with anastomosis (44140)',
-    'COLO2': 'Laparoscopic colectomy with anastomosis (44204)',
-    'COLO3': 'Laparoscopic colectomy with end colostomy (44206)',
-    'COLO4': 'Open colectomy with end colostomy (44143)',
-    'SB1':   'Small bowel resection (44120)',
-    'SB2':   'Open lysis of adhesions (44005)',
-    'SB3':   'Laparoscopic lysis of adhesions (44180)',
-    'GAST1': 'Roux-en-Y gastric bypass (43644)',
-    'GAST2': 'Sleeve gastrectomy (43775)',
-    'HEP':   'Hepatic partial lobectomy (47120)',
-    'TX1':   'Kidney transplant (50360)',
-    'TX2':   'Liver transplant (47135)',
-    'TX3':   'Heart transplant (33945)',
-    'VASC':  'Endovascular aortic repair (34701)',
+    'APPY':  'Appendectomy',
+    'CHOL':  'Cholecystectomy',
+    'COLO1': 'Open colectomy with anastomosis',
+    'COLO2': 'Laparoscopic colectomy with anastomosis',
+    'COLO3': 'Laparoscopic colectomy with end colostomy',
+    'COLO4': 'Open colectomy with end colostomy',
+    'SB1':   'Small bowel resection',
+    'SB2':   'Open lysis of adhesions',
+    'SB3':   'Laparoscopic lysis of adhesions',
+    'GAST1': 'Roux-en-Y gastric bypass',
+    'GAST2': 'Sleeve gastrectomy',
+    'HEP':   'Hepatic partial lobectomy',
+    'TX1':   'Kidney transplant',
+    'TX2':   'Liver transplant',
+    'TX3':   'Heart transplant',
+    'VASC':  'Endovascular aortic repair',
 }
 
 
@@ -618,11 +618,11 @@ def save_fig4(results_df, all_results, analyzer):
     """Fig 4: Top 5 procedures from abstract, annotated with BH-corrected Sen's slope."""
     # Keyed by CPT code: (display name, crosswalk procedure code for stat lookup)
     key_procs = {
-        '34701': ('EVAR (CPT 34701)',                'VASC'),
-        '33945': ('Heart Transplant (CPT 33945)',    'TX3'),
-        '47135': ('Liver Transplant (CPT 47135)',    'TX2'),
-        '47562': ('Cholecystectomy (CPT 47562)',     'CHOL'),
-        '44120': ('Small Bowel Resection (CPT 44120)', 'SB1'),
+        '34701': ('Endovascular Aortic Repair', 'VASC'),
+        '33945': ('Heart Transplant',           'TX3'),
+        '47135': ('Liver Transplant',           'TX2'),
+        '47562': ('Cholecystectomy',            'CHOL'),
+        '44120': ('Small Bowel Resection',      'SB1'),
     }
 
     fig, ax = plt.subplots(figsize=(9, 6))
